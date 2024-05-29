@@ -1,21 +1,19 @@
 
-const express = require('express');
-var mongoose = require('mongoose');
-var app = express();
+const express = require("express");
+const mongoose = require("mongoose");
+const app = express();
 
 //environment variables
-require(dotenv).config();
+require("dotenv").config();
+
+// console.log(process.env.MONGO_URI)
+const Person = require("./models/person");
 
 //database connection
-const uri = process.env.MONGO_URI;
-mongoose.connect(uri,{useNewUrlParser:true,useCreateIndex:true});
-const connection = mongoose.connection;
-connection.once(open, () => {
-    console.log('Connected Database Successfully');
-    });
-    app.listen(3000,function(req,res){
-    console.log('Server is started on port 3000');
-    });
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("connexion MongoDB OK"))
+  .catch((err) => console.error("Une erreur est survenue => .", err));
 
 // Create a document instance using the Person constructor you built before. Pass to the constructor an object having the fields name, age, and favoriteFoods. Their types must conform to the ones in the Person Schema. Then call the method document.save() on the returned document instance. Pass to it a callback using the Node convention. 
 
@@ -64,7 +62,7 @@ function findPeopleByName(name, callback){
             callback(err, null);
         }else {
             console.log('People found:', people);
-            callback(null,people);
+            callback(null, people);
         }
 });
 }
@@ -128,3 +126,142 @@ findPersonById(personId, function(err, person) {
     console.log(person);
   }
 });
+
+// Find a person by _id ( use any of the above methods ) with the parameter personId as a search key. Add "hamburger" to the list of the person's favoriteFoods (you can use Array.push()). Then - inside the find callback - save() the updated Person.
+
+// Note: This may seem tricky, if, in your Schema, you declared favoriteFoods as an Array, without specifying the type (i.e. [String]). In that case, favoriteFoods defaults to Mixed type, and you have to manually mark it as edited using document.markModified('edited-field'). See Mongoose documentation
+
+function addFavoriteFood(personId, callback){
+    Person.findById(personId, function(err, person) {
+        if (err){
+            console.error('Error finding person:', err);
+            callback(err,null);
+            return;
+        }
+        if(!person){
+            console.error('Person not found:', personId);
+            callback(new Error('Person not found'), null);
+            return;
+        }
+
+        // Add 'Hamburger' to the list of favorite foods
+        person.favoriteFoods.push('hamburger');
+
+        // Save the updated person
+        person.save(function(err, updatePerson) {
+            if(err){
+                console.error('Error saving person:', err);
+                callback(err,null);
+            } else {
+                console.log('Updated person:', updatePerson);
+                callback(null, updatePerson);
+            }
+        })
+    });
+} 
+
+// Example usage:
+const person2Id = '60d5f4842ab79c44d4fbc2a9'; // Example ID
+addFavoriteFood(personId, function(err, person) {
+  if (err) {
+    // handle error
+  } else {
+    // handle success
+    console.log(person);
+  }
+});
+
+// Find a person by Name and set the person's age to 20. Use the function parameter personName as a search key.
+
+// Note: You should return the updated document. To do that you need to pass the options document { new: true } as the 3rd argument to findOneAndUpdate(). By default, these methods return the unmodified object.
+function findPersonByName(personName, callback){
+    Person.findOneAndUpdate( 
+    { name: personName }, // Search criteria
+    { age: 20 }, // Update action
+    { new: true }, // Options: return the updated document 
+    function(err, updatedPerson) {
+        if(err){
+            console.error('Error finding person:', err);
+            callback(err,null);
+        }else{
+            console.log('Updated person:', updatedPerson);
+            callback(null, updatedPerson);
+        }
+    });
+}
+
+// Example usage:
+updatePersonAgeByName('John Doe', function(err, person) {
+    if (err) {
+      // handle error
+    } else {
+      // handle success
+      console.log(person);
+    }
+  });
+
+// Delete one person by the person's _id. You should use one of the methods findByIdAndRemove() or findOneAndRemove(). They are like the previous update methods. They pass the removed document to the DB. As usual, use the function argument personId as the search key.
+ function deletePeopleById(id, callback) {
+    Person.findByIdAndRemove(id, function(err, deletedPerson) {
+        if (err) {
+            console.error('Error deleting person:', err);
+            callback(err,null);
+        }else {
+            console.log('Deleted person:', deletedPerson);
+            callback(null, deletedPerson);
+        }
+    });
+ }
+
+ // Example usage:
+const person1Id = '60d5f4842ab79c44d4fbc2a9'; // Example ID
+deletePersonById(personId, function(err, person) {
+  if (err) {
+    // handle error
+  } else {
+    // handle success
+    console.log(person);
+  }});
+
+// Delete all the people whose name is “Mary”, using Model.remove(). Pass it to a query document with the name field set, and of course, do a callback.
+
+//   Note: The Model.remove() doesn’t return the deleted document, but a JSON object containing the outcome of the operation, and the number of items affected. Don’t forget to pass it to the done() callback, since we use it in tests.
+
+function deletePeopleByName(name, callback) {
+    Person.remove({ name: name }, function(err, result) {
+      if (err) {
+        console.error('Error deleting people:', err);
+        callback(err, null);
+      } else {
+        console.log('Delete operation result:', result);
+        callback(null, result);
+      }
+    });
+  }
+  
+  // Example usage:
+  deletePeopleByName('Mary', function(err, result) {
+    if (err) {
+      // handle error
+    } else {
+      // handle success
+      console.log(result);
+    }
+  });
+
+// Find people who like burritos. Sort them by name, limit the results to two documents, and hide their age. Chain .find(), .sort(), .limit(), .select(), and then .exec(). Pass the done(err, data) callback to exec().
+
+function findPeopleByFavoritFood(food){
+    // Assuming you have a Mongoose model called 'Person' with fields 'name', 'age', and 'favoriteFood'
+    Person.find({ favoriteFood: 'burrito' })
+.sort({ name: 1 }) // Sort by name in ascending order
+.limit(2) // Limit the results to 2 documents
+.select('-age') // Hide the 'age' field
+.exec(function(err, data) {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log(data);
+  }
+});
+}
